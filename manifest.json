@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Regra 20-20-20",
+  "version": "1.0",
+  "description": "Lembrate da regra 20-20-20 com widget flutuante configurável",
+  "permissions": ["storage", "alarms", "notifications"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Configurar Regra 20-20-20"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ],
+  "icons": {
+
+    "128": "icon128.png"
+  
+  }
+}

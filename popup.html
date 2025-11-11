@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 300px;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-bottom: 5px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    .button-secondary {
+      background: #2196F3;
+    }
+    .button-secondary:hover {
+      background: #1976D2;
+    }
+    .status {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .active {
+      background: #e8f5e8;
+      color: #2e7d32;
+    }
+    .inactive {
+      background: #ffebee;
+      color: #c62828;
+    }
+    .timer-display {
+      font-size: 32px;
+      font-weight: bold;
+      text-align: center;
+      margin: 15px 0;
+      font-family: 'Courier New', monospace;
+      color: #333;
+    }
+    .timer-display.break-mode {
+      color: #E65100;
+    }
+    .button-group {
+      display: flex;
+      gap: 5px;
+    }
+    .button-group button {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="form-group">
+    <label for="workTime">Tempo de Trabalho (minutos):</label>
+    <input type="number" id="workTime" min="1" value="20">
+  </div>
+  
+  <div class="form-group">
+    <label for="breakTime">Tempo de Descanso (segundos):</label>
+    <input type="number" id="breakTime" min="1" value="20">
+  </div>
+
+  <div class="timer-display" id="timerDisplay">--:--</div>
+  
+  <div class="button-group">
+    <button id="startStop">Iniciar</button>
+    <button id="reset">Reiniciar</button>
+  </div>
+
+  <button id="syncAll" class="button-secondary">Sincronizar Todas as Abas</button>
+  
+  <div id="status" class="status inactive">
+    Parado
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
