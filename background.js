@@ -92,16 +92,29 @@ class TimerManager {
       this.isBreakTime = true;
       this.currentTime = this.breakDuration;
       this.showBreakNotification();
+      this.playAlertSound();
     } else {
       // Fim do descanso, reiniciar ciclo
       this.isBreakTime = false;
       this.currentTime = this.workDuration;
       this.showWorkNotification();
+      this.playAlertSound();
     }
     
     this.startTimestamp = Date.now();
     this.expectedTime = this.currentTime;
     this.broadcastState();
+  }
+
+  playAlertSound() {
+    // Tocar som em todas as abas abertas
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach(tab => {
+        chrome.tabs.sendMessage(tab.id, {
+          action: 'playAlertSound'
+        }).catch(() => {}); // Ignorar erros em abas que não suportam content scripts
+      });
+    });
   }
 
   stop() {
@@ -225,6 +238,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       timerManager.broadcastState();
       sendResponse(timerManager.getState());
       break;
+
   }
   
   return true; // Manter a mensagem aberta para async

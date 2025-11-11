@@ -11,7 +11,7 @@
   z-index: 10000;
   cursor: grab;
   transition: all 0.3s ease;
-  overflow: hidden;
+  /* Remova overflow: hidden para permitir que o tooltip saia do container */
 }
 
 #eye-care-widget:active {
@@ -53,153 +53,7 @@
   text-overflow: ellipsis;
 }
 
-.widget-toggle {
-  background: none;
-  border: none;
-  color: white;
-  font-weight: bold;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 12px;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.widget-toggle:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-/* Conteúdo que será escondido quando minimizado */
-.widget-content {
-  padding: 15px;
-  text-align: center;
-  transition: opacity 0.3s ease;
-}
-
-#eye-care-widget.minimized .widget-content {
-  display: none !important;
-}
-
-.timer-display {
-  font-size: 24px;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 5px;
-  font-family: 'Courier New', monospace;
-}
-
-.status-message {
-  font-size: 11px;
-  color: #666;
-  margin-bottom: 8px;
-}
-
-.break-mode .timer-display {
-  color: #E65100;
-}
-
-.break-mode .status-message {
-  color: #FF9800;
-  font-weight: bold;
-}
-
-.sync-button {
-  width: 100%;
-  padding: 6px;
-  background: #2196F3;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 11px;
-}
-
-.sync-button:hover {
-  background: #1976D2;
-}
-
-.sync-button:disabled {
-  background: #4CAF50;
-  cursor: not-allowed;
-}
-
-/* Estados de alerta */
-#eye-care-widget.break-alert {
-  animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
-
-/* Efeito de transição suave */
-#eye-care-widget {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-
-#eye-care-widget {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  width: 180px;
-  background: white;
-  border: 2px solid #4CAF50;
-  border-radius: 10px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  font-family: Arial, sans-serif;
-  z-index: 10000;
-  cursor: grab;
-  transition: all 0.3s ease;
-  overflow: hidden;
-}
-
-#eye-care-widget:active {
-  cursor: grabbing;
-}
-
-#eye-care-widget.minimized {
-  width: 150px;
-  height: 35px !important;
-  min-height: 35px !important;
-}
-
-/* Header sempre visível */
-.widget-header {
-  background: #4CAF50;
-  color: white;
-  padding: 8px 12px;
-  border-radius: 8px 8px 0 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  user-select: none;
-  cursor: grab;
-}
-
-#eye-care-widget.minimized .widget-header {
-  border-radius: 8px;
-}
-
-.break-mode .widget-header {
-  background: #FF9800;
-}
-
-.widget-title {
-  font-weight: bold;
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Container do botão com tooltip */
+/* Container do botão com tooltip - MODIFICADO */
 .widget-toggle-container {
   position: relative;
   display: inline-block;
@@ -226,47 +80,31 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* Tooltip */
-.widget-toggle-container::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: -35px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.8);
+/* TOOLTIP MODIFICADO - Agora está fora do widget */
+.widget-tooltip {
+  position: fixed;
+  background: rgba(0, 0, 0, 0.9);
   color: white;
-  padding: 6px 10px;
-  border-radius: 4px;
-  font-size: 11px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s ease, bottom 0.3s ease;
+  transition: opacity 0.3s ease;
   z-index: 10001;
   font-family: Arial, sans-serif;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
-.widget-toggle-container::after {
+.widget-tooltip::after {
   content: '';
   position: absolute;
-  bottom: -25px;
+  top: -5px;
   left: 50%;
   transform: translateX(-50%);
   border: 5px solid transparent;
-  border-bottom-color: rgba(0, 0, 0, 0.8);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease, bottom 0.3s ease;
-}
-
-.widget-toggle-container:hover::before,
-.widget-toggle-container:hover::after {
-  opacity: 1;
-  bottom: -30px;
-}
-
-.widget-toggle-container:hover::after {
-  bottom: -20px;
+  border-bottom-color: rgba(0, 0, 0, 0.9);
 }
 
 /* Conteúdo que será escondido quando minimizado */
@@ -305,7 +143,7 @@
 
 .sync-button {
   width: 100%;
-  padding: 6px;
+  padding: 8px;
   background: #2196F3;
   color: white;
   border: none;
@@ -313,6 +151,7 @@
   cursor: pointer;
   font-size: 11px;
   transition: background-color 0.2s ease;
+  position: relative;
 }
 
 .sync-button:hover {
@@ -322,6 +161,33 @@
 .sync-button:disabled {
   background: #4CAF50;
   cursor: not-allowed;
+}
+
+/* Tooltip para o botão sync também modificado */
+.sync-tooltip {
+  position: fixed;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 10001;
+  font-family: Arial, sans-serif;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.sync-tooltip::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-bottom-color: rgba(0, 0, 0, 0.9);
 }
 
 /* Estados de alerta */

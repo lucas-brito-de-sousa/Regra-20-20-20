@@ -4,9 +4,47 @@ class FloatingWidget {
     this.isDragging = false;
     this.dragOffset = { x: 0, y: 0 };
     this.isMinimized = false;
+    this.audio = null;
+    this.tooltip = null; // Novo: referência para o tooltip
+    this.syncTooltip = null; // Novo: tooltip para o botão sync
     this.createWidget();
     this.loadSettings();
     this.setupMessageListener();
+    this.setupAudio();
+    this.createTooltips(); // Novo: criar tooltips
+  }
+
+  createTooltips() {
+    // Criar tooltip para o botão toggle
+    this.tooltip = document.createElement('div');
+    this.tooltip.className = 'widget-tooltip';
+    this.tooltip.textContent = 'Minimizar';
+    document.body.appendChild(this.tooltip);
+
+    // Criar tooltip para o botão sync
+    this.syncTooltip = document.createElement('div');
+    this.syncTooltip.className = 'sync-tooltip';
+    this.syncTooltip.textContent = 'Sincronizar com todas as abas';
+    document.body.appendChild(this.syncTooltip);
+  }
+
+  setupAudio() {
+    // Criar elemento de áudio
+    this.audio = new Audio(chrome.runtime.getURL('alert.mp3'));
+    this.audio.preload = 'auto';
+    
+    // Tentar carregar o áudio silenciosamente
+    this.audio.load();
+  }
+
+  playAlertSound() {
+    if (this.audio) {
+      // Reiniciar e tocar o som
+      this.audio.currentTime = 0;
+      this.audio.play().catch(error => {
+        console.log('Não foi possível tocar o som:', error);
+      });
+    }
   }
 
   createWidget() {
@@ -15,7 +53,7 @@ class FloatingWidget {
     this.widget.innerHTML = `
       <div class="widget-header">
         <span class="widget-title">Descanso Visual</span>
-        <div class="widget-toggle-container" data-tooltip="Minimizar">
+        <div class="widget-toggle-container">
           <button class="widget-toggle">▼</button>
         </div>
       </div>
@@ -32,6 +70,27 @@ class FloatingWidget {
   }
 
   addEventListeners() {
+    const toggleBtn = this.widget.querySelector('.widget-toggle');
+    const syncBtn = this.widget.querySelector('.sync-button');
+
+    // Tooltip para o botão toggle
+    toggleBtn.addEventListener('mouseenter', (e) => {
+      this.showTooltip(e.target, this.isMinimized ? 'Expandir' : 'Minimizar');
+    });
+
+    toggleBtn.addEventListener('mouseleave', () => {
+      this.hideTooltip();
+    });
+
+    // Tooltip para o botão sync
+    syncBtn.addEventListener('mouseenter', (e) => {
+      this.showSyncTooltip(e.target);
+    });
+
+    syncBtn.addEventListener('mouseleave', () => {
+      this.hideSyncTooltip();
+    });
+
     // Arrastar
     this.widget.addEventListener('mousedown', (e) => {
       if (e.target.classList.contains('widget-toggle') || 
@@ -42,6 +101,10 @@ class FloatingWidget {
       this.dragOffset.x = e.clientX - this.widget.getBoundingClientRect().left;
       this.dragOffset.y = e.clientY - this.widget.getBoundingClientRect().top;
       this.widget.style.cursor = 'grabbing';
+      
+      // Esconder tooltips durante o arrasto
+      this.hideTooltip();
+      this.hideSyncTooltip();
     });
 
     document.addEventListener('mousemove', (e) => {
@@ -58,46 +121,82 @@ class FloatingWidget {
     });
 
     // Botão toggle minimizar/expandir
-    this.widget.querySelector('.widget-toggle').addEventListener('click', (e) => {
+    toggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.toggleMinimize();
     });
 
     // Botão sincronizar
-    this.widget.querySelector('.sync-button').addEventListener('click', () => {
+    syncBtn.addEventListener('click', () => {
       this.syncWithPopup();
     });
   }
 
-  toggleMinimize() {
-    this.isMinimized = !this.isMinimized;
-    const toggleBtn = this.widget.querySelector('.widget-toggle');
-    const toggleContainer = this.widget.querySelector('.widget-toggle-container');
-    const content = this.widget.querySelector('.widget-content');
+  showTooltip(element, text) {
+    if (!this.tooltip) return;
     
-    if (this.isMinimized) {
-      // Minimizar - esconder conteúdo
-      content.style.display = 'none';
-      this.widget.classList.add('minimized');
-      toggleBtn.textContent = '▶'; // Seta para direita quando minimizado
-      toggleContainer.setAttribute('data-tooltip', 'Expandir');
-    } else {
-      // Expandir - mostrar conteúdo
-      content.style.display = 'block';
-      this.widget.classList.remove('minimized');
-      toggleBtn.textContent = '▼'; // Seta para baixo quando expandido
-      toggleContainer.setAttribute('data-tooltip', 'Minimizar');
+    const rect = element.getBoundingClientRect();
+    this.tooltip.textContent = text;
+    this.tooltip.style.opacity = '1';
+    
+    // Posicionar o tooltip acima do botão
+    this.tooltip.style.left = (rect.left + rect.width / 2) + 'px';
+    this.tooltip.style.top = (rect.top - 10) + 'px';
+    this.tooltip.style.transform = 'translateX(-50%) translateY(-100%)';
+  }
+
+  hideTooltip() {
+    if (this.tooltip) {
+      this.tooltip.style.opacity = '0';
     }
+  }
+
+  showSyncTooltip(element) {
+    if (!this.syncTooltip) return;
     
-    this.saveMinimizeState();
+    const rect = element.getBoundingClientRect();
+    this.syncTooltip.style.opacity = '1';
+    
+    // Posicionar o tooltip acima do botão sync
+    this.syncTooltip.style.left = (rect.left + rect.width / 2) + 'px';
+    this.syncTooltip.style.top = (rect.top - 10) + 'px';
+    this.syncTooltip.style.transform = 'translateX(-50%) translateY(-100%)';
+  }
+
+  hideSyncTooltip() {
+    if (this.syncTooltip) {
+      this.syncTooltip.style.opacity = '0';
+    }
   }
 
   setupMessageListener() {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (request.action === 'timerUpdate') {
         this.updateDisplay(request.state);
+      } else if (request.action === 'playAlertSound') {
+        this.playAlertSound();
       }
     });
+  }
+
+  toggleMinimize() {
+    this.isMinimized = !this.isMinimized;
+    const toggleBtn = this.widget.querySelector('.widget-toggle');
+    const content = this.widget.querySelector('.widget-content');
+    
+    if (this.isMinimized) {
+      // Minimizar - esconder conteúdo
+      content.style.display = 'none';
+      this.widget.classList.add('minimized');
+      toggleBtn.textContent = '▶';
+    } else {
+      // Expandir - mostrar conteúdo
+      content.style.display = 'block';
+      this.widget.classList.remove('minimized');
+      toggleBtn.textContent = '▼';
+    }
+    
+    this.saveMinimizeState();
   }
 
   requestState() {
@@ -109,7 +208,6 @@ class FloatingWidget {
   }
 
   updateDisplay(state) {
-    // Atualizar mesmo quando minimizado (para quando expandir novamente)
     const timerDisplay = this.widget.querySelector('.timer-display');
     const statusMessage = this.widget.querySelector('.status-message');
     
@@ -174,11 +272,9 @@ class FloatingWidget {
         this.isMinimized = true;
         const content = this.widget.querySelector('.widget-content');
         const toggleBtn = this.widget.querySelector('.widget-toggle');
-        const toggleContainer = this.widget.querySelector('.widget-toggle-container');
         content.style.display = 'none';
         this.widget.classList.add('minimized');
         toggleBtn.textContent = '▶';
-        toggleContainer.setAttribute('data-tooltip', 'Expandir');
       }
     });
   }
@@ -189,7 +285,7 @@ let widget;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    widget = new FloatingWidget();
+    widget = new FloatingWidget();P
   });
 } else {
   widget = new FloatingWidget();

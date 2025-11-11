@@ -18,9 +18,12 @@
       "css": ["content.css"]
     }
   ],
+  "web_accessible_resources": [{
+    "resources": ["alert.mp3"],
+    "matches": ["<all_urls>"]
+  }],
   "icons": {
-
+ 
     "128": "icon128.png"
-  
   }
 }
