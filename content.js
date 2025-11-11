@@ -3,7 +3,7 @@ class FloatingWidget {
     this.widget = null;
     this.isDragging = false;
     this.dragOffset = { x: 0, y: 0 };
-    this.isHidden = false;
+    this.isMinimized = false;
     this.createWidget();
     this.loadSettings();
     this.setupMessageListener();
@@ -15,7 +15,9 @@ class FloatingWidget {
     this.widget.innerHTML = `
       <div class="widget-header">
         <span class="widget-title">Descanso Visual</span>
-        <button class="widget-hide">−</button>
+        <div class="widget-toggle-container" data-tooltip="Minimizar">
+          <button class="widget-toggle">▼</button>
+        </div>
       </div>
       <div class="widget-content">
         <div class="timer-display">--:--</div>
@@ -32,8 +34,9 @@ class FloatingWidget {
   addEventListeners() {
     // Arrastar
     this.widget.addEventListener('mousedown', (e) => {
-      if (e.target.classList.contains('widget-hide') || 
-          e.target.classList.contains('sync-button')) return;
+      if (e.target.classList.contains('widget-toggle') || 
+          e.target.classList.contains('sync-button') ||
+          e.target.closest('.widget-toggle-container')) return;
       
       this.isDragging = true;
       this.dragOffset.x = e.clientX - this.widget.getBoundingClientRect().left;
@@ -54,15 +57,39 @@ class FloatingWidget {
       this.savePosition();
     });
 
-    // Ocultar/mostrar
-    this.widget.querySelector('.widget-hide').addEventListener('click', () => {
-      this.toggleVisibility();
+    // Botão toggle minimizar/expandir
+    this.widget.querySelector('.widget-toggle').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleMinimize();
     });
 
     // Botão sincronizar
     this.widget.querySelector('.sync-button').addEventListener('click', () => {
       this.syncWithPopup();
     });
+  }
+
+  toggleMinimize() {
+    this.isMinimized = !this.isMinimized;
+    const toggleBtn = this.widget.querySelector('.widget-toggle');
+    const toggleContainer = this.widget.querySelector('.widget-toggle-container');
+    const content = this.widget.querySelector('.widget-content');
+    
+    if (this.isMinimized) {
+      // Minimizar - esconder conteúdo
+      content.style.display = 'none';
+      this.widget.classList.add('minimized');
+      toggleBtn.textContent = '▶'; // Seta para direita quando minimizado
+      toggleContainer.setAttribute('data-tooltip', 'Expandir');
+    } else {
+      // Expandir - mostrar conteúdo
+      content.style.display = 'block';
+      this.widget.classList.remove('minimized');
+      toggleBtn.textContent = '▼'; // Seta para baixo quando expandido
+      toggleContainer.setAttribute('data-tooltip', 'Minimizar');
+    }
+    
+    this.saveMinimizeState();
   }
 
   setupMessageListener() {
@@ -82,8 +109,7 @@ class FloatingWidget {
   }
 
   updateDisplay(state) {
-    if (this.isHidden) return;
-    
+    // Atualizar mesmo quando minimizado (para quando expandir novamente)
     const timerDisplay = this.widget.querySelector('.timer-display');
     const statusMessage = this.widget.querySelector('.status-message');
     
@@ -121,19 +147,6 @@ class FloatingWidget {
     }, 2000);
   }
 
-  toggleVisibility() {
-    this.isHidden = !this.isHidden;
-    if (this.isHidden) {
-      this.widget.classList.add('hidden');
-      this.widget.querySelector('.widget-hide').textContent = '+';
-    } else {
-      this.widget.classList.remove('hidden');
-      this.widget.querySelector('.widget-hide').textContent = '−';
-      this.requestState(); // Atualizar display quando mostrar
-    }
-    this.saveVisibility();
-  }
-
   savePosition() {
     const rect = this.widget.getBoundingClientRect();
     chrome.storage.local.set({
@@ -144,23 +157,28 @@ class FloatingWidget {
     });
   }
 
-  saveVisibility() {
+  saveMinimizeState() {
     chrome.storage.local.set({
-      widgetHidden: this.isHidden
+      widgetMinimized: this.isMinimized
     });
   }
 
   loadSettings() {
-    chrome.storage.local.get(['widgetPosition', 'widgetHidden'], (data) => {
+    chrome.storage.local.get(['widgetPosition', 'widgetMinimized'], (data) => {
       if (data.widgetPosition) {
         this.widget.style.left = data.widgetPosition.x + 'px';
         this.widget.style.top = data.widgetPosition.y + 'px';
       }
       
-      if (data.widgetHidden) {
-        this.isHidden = true;
-        this.widget.classList.add('hidden');
-        this.widget.querySelector('.widget-hide').textContent = '+';
+      if (data.widgetMinimized) {
+        this.isMinimized = true;
+        const content = this.widget.querySelector('.widget-content');
+        const toggleBtn = this.widget.querySelector('.widget-toggle');
+        const toggleContainer = this.widget.querySelector('.widget-toggle-container');
+        content.style.display = 'none';
+        this.widget.classList.add('minimized');
+        toggleBtn.textContent = '▶';
+        toggleContainer.setAttribute('data-tooltip', 'Expandir');
       }
     });
   }
