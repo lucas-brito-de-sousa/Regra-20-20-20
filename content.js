@@ -5,13 +5,48 @@ class FloatingWidget {
     this.dragOffset = { x: 0, y: 0 };
     this.isMinimized = false;
     this.audio = null;
-    this.tooltip = null; // Novo: referência para o tooltip
-    this.syncTooltip = null; // Novo: tooltip para o botão sync
+    this.volume = 0.5; // Volume padrão (50%)
+    this.tooltip = null;
+    this.syncTooltip = null;
     this.createWidget();
     this.loadSettings();
     this.setupMessageListener();
     this.setupAudio();
-    this.createTooltips(); // Novo: criar tooltips
+    this.createTooltips();
+  }
+
+  setupAudio() {
+    // Criar elemento de áudio
+    this.audio = new Audio(chrome.runtime.getURL('alert.mp3'));
+    this.audio.preload = 'auto';
+    this.audio.volume = this.volume;
+    
+    // Tentar carregar o áudio silenciosamente
+    this.audio.load();
+  }
+
+  playAlertSound() {
+    if (this.audio) {
+      // Aplicar volume atual e tocar o som
+      this.audio.volume = this.volume;
+      this.audio.currentTime = 0;
+      this.audio.play().catch(error => {
+        console.log('Não foi possível tocar o som:', error);
+      });
+    }
+  }
+
+  updateVolume(volumePercent) {
+    // Converter percentual (0-100) para volume (0.0-1.0)
+    this.volume = volumePercent / 100;
+    
+    // Aplicar volume atual ao áudio se existir
+    if (this.audio) {
+      this.audio.volume = this.volume;
+    }
+    
+    // Salvar volume localmente
+    this.saveVolume(volumePercent);
   }
 
   createTooltips() {
@@ -26,25 +61,6 @@ class FloatingWidget {
     this.syncTooltip.className = 'sync-tooltip';
     this.syncTooltip.textContent = 'Sincronizar com todas as abas';
     document.body.appendChild(this.syncTooltip);
-  }
-
-  setupAudio() {
-    // Criar elemento de áudio
-    this.audio = new Audio(chrome.runtime.getURL('alert.mp3'));
-    this.audio.preload = 'auto';
-    
-    // Tentar carregar o áudio silenciosamente
-    this.audio.load();
-  }
-
-  playAlertSound() {
-    if (this.audio) {
-      // Reiniciar e tocar o som
-      this.audio.currentTime = 0;
-      this.audio.play().catch(error => {
-        console.log('Não foi possível tocar o som:', error);
-      });
-    }
   }
 
   createWidget() {
@@ -132,6 +148,18 @@ class FloatingWidget {
     });
   }
 
+  setupMessageListener() {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'timerUpdate') {
+        this.updateDisplay(request.state);
+      } else if (request.action === 'playAlertSound') {
+        this.playAlertSound();
+      } else if (request.action === 'updateVolume') {
+        this.updateVolume(request.volume);
+      }
+    });
+  }
+
   showTooltip(element, text) {
     if (!this.tooltip) return;
     
@@ -167,16 +195,6 @@ class FloatingWidget {
     if (this.syncTooltip) {
       this.syncTooltip.style.opacity = '0';
     }
-  }
-
-  setupMessageListener() {
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      if (request.action === 'timerUpdate') {
-        this.updateDisplay(request.state);
-      } else if (request.action === 'playAlertSound') {
-        this.playAlertSound();
-      }
-    });
   }
 
   toggleMinimize() {
@@ -261,8 +279,14 @@ class FloatingWidget {
     });
   }
 
+  saveVolume(volumePercent) {
+    chrome.storage.local.set({
+      alarmVolume: volumePercent
+    });
+  }
+
   loadSettings() {
-    chrome.storage.local.get(['widgetPosition', 'widgetMinimized'], (data) => {
+    chrome.storage.local.get(['widgetPosition', 'widgetMinimized', 'alarmVolume'], (data) => {
       if (data.widgetPosition) {
         this.widget.style.left = data.widgetPosition.x + 'px';
         this.widget.style.top = data.widgetPosition.y + 'px';
@@ -276,6 +300,11 @@ class FloatingWidget {
         this.widget.classList.add('minimized');
         toggleBtn.textContent = '▶';
       }
+
+      // Carregar volume salvo
+      if (data.alarmVolume !== undefined) {
+        this.updateVolume(data.alarmVolume);
+      }
     });
   }
 }
@@ -285,7 +314,7 @@ let widget;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    widget = new FloatingWidget();P
+    widget = new FloatingWidget();
   });
 } else {
   widget = new FloatingWidget();

@@ -1,10 +1,13 @@
 document.addEventListener('DOMContentLoaded', function() {
   const workTimeInput = document.getElementById('workTime');
   const breakTimeInput = document.getElementById('breakTime');
+  const volumeSlider = document.getElementById('volume');
+  const volumeValue = document.getElementById('volumeValue');
   const startStopBtn = document.getElementById('startStop');
   const resetBtn = document.getElementById('reset');
   const statusDiv = document.getElementById('status');
   const timerDisplay = document.getElementById('timerDisplay');
+  const syncAllBtn = document.getElementById('syncAll');
 
   // Carregar configurações e estado atual
   loadState();
@@ -15,6 +18,13 @@ document.addEventListener('DOMContentLoaded', function() {
       updateTimerDisplay(request.state);
       updateUI(request.state.isRunning);
     }
+  });
+
+  // Controle de volume
+  volumeSlider.addEventListener('input', function() {
+    const volume = parseInt(this.value);
+    volumeValue.textContent = volume + '%';
+    saveVolume(volume);
   });
 
   startStopBtn.addEventListener('click', function() {
@@ -42,21 +52,42 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Sincronizar com todas as abas
-  document.getElementById('syncAll').addEventListener('click', function() {
+  syncAllBtn.addEventListener('click', function() {
     chrome.runtime.sendMessage({ action: 'syncTimer' });
   });
 
   function loadState() {
     // Carregar configurações salvas
-    chrome.storage.local.get(['workTime', 'breakTime'], function(data) {
+    chrome.storage.local.get(['workTime', 'breakTime', 'alarmVolume'], function(data) {
       workTimeInput.value = data.workTime || 20;
       breakTimeInput.value = data.breakTime || 20;
+      
+      // Configurar volume
+      const volume = data.alarmVolume || 50;
+      volumeSlider.value = volume;
+      volumeValue.textContent = volume + '%';
     });
 
     // Carregar estado atual do timer
     chrome.runtime.sendMessage({ action: 'getTimerState' }, function(state) {
       updateTimerDisplay(state);
       updateUI(state.isRunning);
+    });
+  }
+
+  function saveVolume(volume) {
+    chrome.storage.local.set({
+      alarmVolume: volume
+    });
+
+    // Enviar volume atualizado para todas as abas
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach(tab => {
+        chrome.tabs.sendMessage(tab.id, {
+          action: 'updateVolume',
+          volume: volume
+        }).catch(() => {}); // Ignorar erros em abas que não suportam content scripts
+      });
     });
   }
 
@@ -69,10 +100,10 @@ document.addEventListener('DOMContentLoaded', function() {
     timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     
     if (state.isBreakTime) {
-      timerDisplay.className = 'break-mode';
+      timerDisplay.className = 'timer-display break-mode';
       statusDiv.textContent = 'Tempo de Descanso';
     } else {
-      timerDisplay.className = '';
+      timerDisplay.className = 'timer-display';
       statusDiv.textContent = 'Tempo de Trabalho';
     }
   }
