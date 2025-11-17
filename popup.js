@@ -75,21 +75,41 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  function saveVolume(volume) {
-    chrome.storage.local.set({
-      alarmVolume: volume
-    });
 
-    // Enviar volume atualizado para todas as abas
-    chrome.tabs.query({}, (tabs) => {
-      tabs.forEach(tab => {
-        chrome.tabs.sendMessage(tab.id, {
-          action: 'updateVolume',
-          volume: volume
-        }).catch(() => {}); // Ignorar erros em abas que não suportam content scripts
+  function saveVolume(volume) {
+  chrome.storage.local.set({
+    alarmVolume: volume
+  });
+
+  // Enviar volume atualizado apenas para a aba ativa
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs.length > 0) {
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: 'updateVolume',
+        volume: volume
+      }).catch(() => {
+        // Se falhar na aba ativa, tentar em qualquer aba
+        this.updateVolumeInAnyTab(volume);
       });
-    });
-  }
+    } else {
+      this.updateVolumeInAnyTab(volume);
+    }
+  });
+}
+
+function updateVolumeInAnyTab(volume) {
+  // Fallback: atualizar volume em qualquer aba disponível
+  chrome.tabs.query({}, (tabs) => {
+    if (tabs.length > 0) {
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: 'updateVolume',
+        volume: volume
+      }).catch(() => {}); // Ignorar erro se não conseguir
+    }
+  });
+}
+
+
 
   function updateTimerDisplay(state) {
     if (!timerDisplay) return;

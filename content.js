@@ -24,17 +24,35 @@ class FloatingWidget {
     // Tentar carregar o áudio silenciosamente
     this.audio.load();
   }
-
-  playAlertSound() {
-    if (this.audio) {
-      // Aplicar volume atual e tocar o som
+playAlertSound(requestVolume = null) {
+  if (this.audio) {
+    // Usar volume fornecido ou volume padrão
+    if (requestVolume !== null) {
+      this.audio.volume = requestVolume;
+    } else {
       this.audio.volume = this.volume;
-      this.audio.currentTime = 0;
-      this.audio.play().catch(error => {
-        console.log('Não foi possível tocar o som:', error);
-      });
     }
+    
+    // Reiniciar e tocar o som
+    this.audio.currentTime = 0;
+    this.audio.play().catch(error => {
+      console.log('Não foi possível tocar o som:', error);
+    });
   }
+}
+
+setupMessageListener() {
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'timerUpdate') {
+      this.updateDisplay(request.state);
+    } else if (request.action === 'playAlertSound') {
+      // Receber volume do background se fornecido
+      this.playAlertSound(request.volume);
+    } else if (request.action === 'updateVolume') {
+      this.updateVolume(request.volume);
+    }
+  });
+}
 
   updateVolume(volumePercent) {
     // Converter percentual (0-100) para volume (0.0-1.0)

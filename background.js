@@ -24,23 +24,41 @@ class TimerManager {
     
     if (data.workTime) this.workDuration = data.workTime * 60;
     if (data.breakTime) this.breakDuration = data.breakTime;
-    if (data.isRunning !== undefined) this.isRunning = data.isRunning;
     
-    // Restaurar estado do timer se existir
-    if (data.timerState && data.isRunning) {
+    // SEMPRE iniciar como parado quando o Chrome abrir
+    this.isRunning = false;
+    
+    // Restaurar o tempo atual baseado no último estado, mas não executar
+    if (data.timerState) {
       const state = data.timerState;
+      // Calcular quanto tempo passou desde o último salvamento
       const elapsed = Math.floor((Date.now() - state.timestamp) / 1000);
-      this.currentTime = Math.max(0, state.currentTime - elapsed);
-      this.isBreakTime = state.isBreakTime;
+      const remainingTime = Math.max(0, state.currentTime - elapsed);
       
-      if (this.currentTime > 0) {
-        this.startTimerInternal();
+      if (remainingTime > 0) {
+        // Se ainda havia tempo restante, restaurar esse tempo
+        this.currentTime = remainingTime;
+        this.isBreakTime = state.isBreakTime;
       } else {
-        this.handleTimerComplete();
+        // Se o tempo já acabou, ir para o próximo estado
+        if (state.isBreakTime) {
+          // Se estava em descanso, voltar ao trabalho
+          this.currentTime = this.workDuration;
+          this.isBreakTime = false;
+        } else {
+          // Se estava em trabalho, ir para o descanso
+          this.currentTime = this.breakDuration;
+          this.isBreakTime = true;
+        }
       }
-    } else if (this.isRunning) {
-      this.start();
+    } else {
+      // Estado padrão
+      this.currentTime = this.workDuration;
+      this.isBreakTime = false;
     }
+    
+    // Limpar estado do timer salvo já que não vamos continuar executando
+    chrome.storage.local.remove(['timerState']);
   }
 
   setupAlarms() {
@@ -107,13 +125,34 @@ class TimerManager {
   }
 
   playAlertSound() {
-    // Tocar som em todas as abas abertas
-    chrome.tabs.query({}, (tabs) => {
-      tabs.forEach(tab => {
-        chrome.tabs.sendMessage(tab.id, {
-          action: 'playAlertSound'
-        }).catch(() => {}); // Ignorar erros em abas que não suportam content scripts
+    // Primeiro, obter o volume atual
+    chrome.storage.local.get(['alarmVolume'], (data) => {
+      const volume = (data.alarmVolume || 50) / 100;
+      
+      // Tocar som apenas na aba ativa da janela atual
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs.length > 0) {
+          chrome.tabs.sendMessage(tabs[0].id, {
+            action: 'playAlertSound',
+            volume: volume
+          }).catch(() => {
+            this.playAlertSoundInAnyTab(volume);
+          });
+        } else {
+          this.playAlertSoundInAnyTab(volume);
+        }
       });
+    });
+  }
+
+  playAlertSoundInAnyTab(volume) {
+    chrome.tabs.query({}, (tabs) => {
+      if (tabs.length > 0) {
+        chrome.tabs.sendMessage(tabs[0].id, {
+          action: 'playAlertSound',
+          volume: volume
+        }).catch(() => {});
+      }
     });
   }
 
@@ -124,6 +163,8 @@ class TimerManager {
       this.intervalId = null;
     }
     this.saveSettings();
+    // Limpar estado do timer quando parar manualmente
+    chrome.storage.local.remove(['timerState']);
     this.broadcastState();
   }
 
@@ -143,21 +184,19 @@ class TimerManager {
       breakDuration: this.breakDuration
     };
     
-    // Enviar para todas as abas
     chrome.tabs.query({}, (tabs) => {
       tabs.forEach(tab => {
         chrome.tabs.sendMessage(tab.id, {
           action: 'timerUpdate',
           state: state
-        }).catch(() => {}); // Ignorar erros em abas que não suportam content scripts
+        }).catch(() => {});
       });
     });
     
-    // Enviar para popup se estiver aberto
     chrome.runtime.sendMessage({
       action: 'timerUpdate',
       state: state
-    }).catch(() => {}); // Ignorar erro se popup não estiver aberto
+    }).catch(() => {});
   }
 
   saveSettings() {
@@ -183,18 +222,18 @@ class TimerManager {
   showBreakNotification() {
     chrome.notifications.create({
       type: 'basic',
-      iconUrl: 'icon48.png',
-      title: 'Hora do Descanso!',
-      message: 'Olhe para algo a 20 pés de distância por 20 segundos'
+      title: 'Hora do Descanso! 👀',
+      message: 'Olhe para algo a 20 pés de distância por 20 segundos',
+      iconUrl: ''
     });
   }
 
   showWorkNotification() {
     chrome.notifications.create({
       type: 'basic',
-      iconUrl: 'icon48.png',
-      title: 'Volte ao Trabalho!',
-      message: 'Tempo de descanso terminou'
+      title: 'Volte ao Trabalho! 💻',
+      message: 'Tempo de descanso terminou',
+      iconUrl: ''
     });
   }
 
@@ -238,10 +277,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       timerManager.broadcastState();
       sendResponse(timerManager.getState());
       break;
-
   }
   
-  return true; // Manter a mensagem aberta para async
+  return true;
 });
 
 // Atualizar todas as abas quando uma nova aba é aberta
