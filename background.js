@@ -226,7 +226,7 @@ class TimerManager {
 showBreakNotification() {
   chrome.notifications.create({
     type: 'basic',
-    iconUrl: '', // String vazia para usar ícone padrão
+    iconUrl: chrome.runtime.getURL('icon128.png'), // Caminho correto do ícone
     title: 'Hora do Descanso!',
     message: 'Olhe para algo a 20 pés de distância por 20 segundos'
   });
@@ -235,7 +235,7 @@ showBreakNotification() {
 showWorkNotification() {
   chrome.notifications.create({
     type: 'basic',
-    iconUrl: '', // String vazia para usar ícone padrão  
+    iconUrl: chrome.runtime.getURL('icon128.png'), // Caminho correto do ícone
     title: 'Volte ao Trabalho!',
     message: 'Tempo de descanso terminou'
   });
