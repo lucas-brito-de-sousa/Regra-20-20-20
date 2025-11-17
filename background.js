@@ -14,6 +14,7 @@ class TimerManager {
     this.setupAlarms();
   }
 
+
   async loadSettings() {
     const data = await chrome.storage.local.get([
       'workTime', 
@@ -60,6 +61,7 @@ class TimerManager {
     // Limpar estado do timer salvo já que não vamos continuar executando
     chrome.storage.local.remove(['timerState']);
   }
+
 
   setupAlarms() {
     chrome.alarms.create('timerTick', { periodInMinutes: 1/60 }); // 1 segundo
@@ -134,11 +136,13 @@ class TimerManager {
         if (tabs.length > 0) {
           chrome.tabs.sendMessage(tabs[0].id, {
             action: 'playAlertSound',
-            volume: volume
+            volume: volume // Enviar volume junto com o comando
           }).catch(() => {
+            // Se falhar, tentar tocar em qualquer aba disponível
             this.playAlertSoundInAnyTab(volume);
           });
         } else {
+          // Se não encontrar aba ativa, tentar em qualquer aba
           this.playAlertSoundInAnyTab(volume);
         }
       });
@@ -146,12 +150,13 @@ class TimerManager {
   }
 
   playAlertSoundInAnyTab(volume) {
+    // Fallback: tocar em qualquer aba disponível
     chrome.tabs.query({}, (tabs) => {
       if (tabs.length > 0) {
         chrome.tabs.sendMessage(tabs[0].id, {
           action: 'playAlertSound',
           volume: volume
-        }).catch(() => {});
+        }).catch(() => {}); // Ignorar erro se não conseguir
       }
     });
   }
@@ -163,8 +168,6 @@ class TimerManager {
       this.intervalId = null;
     }
     this.saveSettings();
-    // Limpar estado do timer quando parar manualmente
-    chrome.storage.local.remove(['timerState']);
     this.broadcastState();
   }
 
@@ -184,19 +187,21 @@ class TimerManager {
       breakDuration: this.breakDuration
     };
     
+    // Enviar para todas as abas (apenas para atualizar display)
     chrome.tabs.query({}, (tabs) => {
       tabs.forEach(tab => {
         chrome.tabs.sendMessage(tab.id, {
           action: 'timerUpdate',
           state: state
-        }).catch(() => {});
+        }).catch(() => {}); // Ignorar erros em abas que não suportam content scripts
       });
     });
     
+    // Enviar para popup se estiver aberto
     chrome.runtime.sendMessage({
       action: 'timerUpdate',
       state: state
-    }).catch(() => {});
+    }).catch(() => {}); // Ignorar erro se popup não estiver aberto
   }
 
   saveSettings() {
@@ -218,25 +223,23 @@ class TimerManager {
       });
     }
   }
+showBreakNotification() {
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: '', // String vazia para usar ícone padrão
+    title: 'Hora do Descanso!',
+    message: 'Olhe para algo a 20 pés de distância por 20 segundos'
+  });
+}
 
-  showBreakNotification() {
-    chrome.notifications.create({
-      type: 'basic',
-      title: 'Hora do Descanso! 👀',
-      message: 'Olhe para algo a 20 pés de distância por 20 segundos',
-      iconUrl: ''
-    });
-  }
-
-  showWorkNotification() {
-    chrome.notifications.create({
-      type: 'basic',
-      title: 'Volte ao Trabalho! 💻',
-      message: 'Tempo de descanso terminou',
-      iconUrl: ''
-    });
-  }
-
+showWorkNotification() {
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: '', // String vazia para usar ícone padrão  
+    title: 'Volte ao Trabalho!',
+    message: 'Tempo de descanso terminou'
+  });
+}
   getState() {
     return {
       currentTime: this.currentTime,
@@ -279,7 +282,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       break;
   }
   
-  return true;
+  return true; // Manter a mensagem aberta para async
 });
 
 // Atualizar todas as abas quando uma nova aba é aberta
